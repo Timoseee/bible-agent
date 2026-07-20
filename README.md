@@ -1,6 +1,6 @@
 ﻿# BibleAI
 
-BibleAI is an AI-assisted Bible sermon processing system.
+BibleAI is an AI-assisted Bible sermon processing system. very cool.
 
 Completed through Phase 7D:
 
