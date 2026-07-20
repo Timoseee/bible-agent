@@ -90,7 +90,7 @@ def transcribe_audio(audio_path):
     if audio_info["duration_minutes"] > MAX_DURATION_MINUTES:
         raise AudioTranscriptionError("Audio is longer than the 2 hour maximum supported duration.")
 
-    client = OpenAI(api_key=config["openai_api_key"])
+    client = OpenAI(api_key=config["openai_api_key"], timeout=600.0)
     text_parts = []
 
     if audio_info["size_mb"] <= MAX_DIRECT_UPLOAD_MB:

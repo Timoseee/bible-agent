@@ -100,6 +100,19 @@ class Phase7BAudioDocxTests(unittest.TestCase):
         paragraphs = optimize_audio_paragraphs(text)
         self.assertEqual(paragraphs, ["第一句。第二句。第三句。第四句。"])
 
+    def test_preserves_polished_blank_line_paragraphs(self):
+        text = (
+            "出埃及记第十九章\n\n"
+            "第一节到第二节说明百姓来到西奈旷野，并思想旷野中与神相遇的意义。"
+            "这里把这两节的讲解完整放在同一段。\n\n"
+            "第三节到第六节说明上帝呼唤摩西上山，并宣告西奈之约的前言。"
+            "这两节相关内容也应保持在同一段，不要再拆开。"
+        )
+        paragraphs = optimize_audio_paragraphs(text)
+        self.assertEqual(len(paragraphs), 3)
+        self.assertIn("第一节到第二节", paragraphs[1])
+        self.assertIn("第三节到第六节", paragraphs[2])
+
     def test_extracts_chapter_title(self):
         text = "各位亲爱的家人 主内平安 我们一同学习出埃及记的第十九章 这一章经文主要是"
         self.assertEqual(extract_audio_title(text), "出埃及记第十九章")

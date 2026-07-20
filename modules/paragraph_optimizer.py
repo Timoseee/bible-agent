@@ -151,10 +151,33 @@ def _soft_segment_spaced_text(text):
     return paragraphs
 
 
+def _normalize_internal_newlines(paragraph):
+    return re.sub(r"[ \t]*\n[ \t]*", "", paragraph).strip()
+
+
+def _looks_prestructured(paragraphs):
+    """Detect already-polished blank-line paragraphs that should be kept intact."""
+    if len(paragraphs) < 2:
+        return False
+    substantial = [paragraph for paragraph in paragraphs if len(paragraph) >= 40]
+    punctuated = [
+        paragraph
+        for paragraph in substantial
+        if re.search(r"[。！？!?]", paragraph)
+    ]
+    return len(substantial) >= 2 and len(punctuated) >= max(1, len(substantial) // 2)
+
+
 def optimize_audio_paragraphs(text):
-    """Return readable, paper-saving paragraphs without changing wording."""
+    """Return readable paragraphs without changing wording."""
     if not text or not text.strip():
         return []
+
+    blank_line_paragraphs = [
+        part.strip() for part in re.split(r"\n\s*\n", text) if part.strip()
+    ]
+    if _looks_prestructured(blank_line_paragraphs):
+        return [_normalize_internal_newlines(part) for part in blank_line_paragraphs]
 
     source_paragraphs = [part.strip() for part in re.split(r"\n\s*\n|\n", text) if part.strip()]
 

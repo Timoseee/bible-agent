@@ -11,6 +11,7 @@ from modules.image_docx_renderer import generate_image_docx
 from modules.image_ocr import SUPPORTED_IMAGE_EXTENSIONS, extract_text_from_images
 from modules.image_sorter import sort_images
 from modules.input_classifier import classify_input
+from modules.polish_engine import polish_sermon_text
 from modules.style_mapper import build_style_mapping
 from modules.template_manager import get_template_path
 from modules.text_cleaning_pipeline import clean_ocr_text
@@ -80,6 +81,16 @@ def process_audio_input(audio_path, provider=None):
         steps.append("Correction and review completed")
     except Exception as error:
         return _failure(audio_path, "audio", "correction", error)
+
+    try:
+        polish = polish_sermon_text(final_text, provider)
+        if polish["success"]:
+            final_text = polish["polished_text"]
+            steps.append("Editorial polish completed")
+        else:
+            steps.append("Editorial polish skipped")
+    except Exception as error:
+        return _failure(audio_path, "audio", "polish", error)
 
     try:
         output_path = _safe_filename(audio_path, "audio")
