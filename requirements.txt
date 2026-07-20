@@ -1,0 +1,7 @@
+﻿python-docx
+python-dotenv
+mutagen
+openai
+pydub
+audioop-lts
+Pillow
