@@ -26,7 +26,8 @@ You MUST NOT:
 
 Title rule:
 
-- If this chunk is the beginning of the sermon and a Bible book/chapter is clear, put a short title on the first line by itself, for example: 出埃及记第十九章
+- If this chunk is the beginning of the sermon and a Bible book/chapter is clear, put a short title on the first line by itself, for example: 《出埃及记》第十九章
+- Book names in the title should use Chinese book-title marks, for example 《出埃及记》.
 - If this chunk is a continuation, do not invent a title.
 
 Output rule:

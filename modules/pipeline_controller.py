@@ -1,5 +1,6 @@
 """Final automatic processing pipeline controller."""
 
+import re
 from pathlib import Path
 
 from modules.ai_provider import create_ai_provider
@@ -11,6 +12,7 @@ from modules.image_docx_renderer import generate_image_docx
 from modules.image_ocr import SUPPORTED_IMAGE_EXTENSIONS, extract_text_from_images
 from modules.image_sorter import sort_images
 from modules.input_classifier import classify_input
+from modules.paragraph_optimizer import build_audio_output_stem
 from modules.polish_engine import polish_sermon_text
 from modules.style_mapper import build_style_mapping
 from modules.template_manager import get_template_path
@@ -28,6 +30,27 @@ def _default_provider():
 def _safe_filename(path, prefix):
     stem = Path(path).stem or "folder"
     return OUTPUT_DOCX_DIR / f"{prefix}_{stem}.docx"
+
+
+def _sanitize_filename(name):
+    cleaned = re.sub(r'[<>:"/\\|?*]', "", str(name)).strip()
+    return cleaned or "音频文本"
+
+
+def _audio_output_path(text, audio_path):
+    stem = build_audio_output_stem(text)
+    if not stem:
+        stem = f"音频文本_{Path(audio_path).stem}"
+    candidate = OUTPUT_DOCX_DIR / f"{_sanitize_filename(stem)}.docx"
+    if not candidate.exists():
+        return candidate
+
+    index = 2
+    while True:
+        alternate = OUTPUT_DOCX_DIR / f"{_sanitize_filename(stem)}_{index}.docx"
+        if not alternate.exists():
+            return alternate
+        index += 1
 
 
 def _success(input_path, input_type, output_path, steps):
@@ -93,7 +116,7 @@ def process_audio_input(audio_path, provider=None):
         return _failure(audio_path, "audio", "polish", error)
 
     try:
-        output_path = _safe_filename(audio_path, "audio")
+        output_path = _audio_output_path(final_text, audio_path)
         generate_audio_docx(final_text, get_template_path("audio"), output_path)
         steps.append("Audio DOCX generated")
     except Exception as error:

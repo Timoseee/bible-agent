@@ -10,7 +10,7 @@ SOFT_TARGET_CHARS = 180
 SOFT_MAX_CHARS = 280
 
 CHAPTER_TITLE_PATTERN = re.compile(
-    r"("
+    r"《?("
     r"创世[纪记]|出埃及记|利未记|民数记|申命记|约书亚记|士师记|路得记|"
     r"撒母耳记[上下]|列王纪[上下]|历代志[上下]|以斯拉记|尼希米记|以斯帖记|"
     r"约伯记|诗篇|箴言|传道书|雅歌|以赛亚书|耶利米书|耶利米哀歌|以西结书|但以理书|"
@@ -20,9 +20,25 @@ CHAPTER_TITLE_PATTERN = re.compile(
     r"罗马书|哥林多前书|哥林多后书|加拉太书|以弗所书|腓立比书|歌罗西书|"
     r"帖撒罗尼迦前书|帖撒罗尼迦后书|提摩太前书|提摩太后书|提多书|腓利门书|"
     r"希伯来书|雅各书|彼得前书|彼得后书|约翰[一二三]书|犹大书|启示录"
-    r")"
+    r")》?"
     r"(?:的)?第?([一二三四五六七八九十百千零〇O0-9]+)章"
 )
+
+CN_DIGITS = {
+    "零": 0,
+    "〇": 0,
+    "O": 0,
+    "一": 1,
+    "二": 2,
+    "两": 2,
+    "三": 3,
+    "四": 4,
+    "五": 5,
+    "六": 6,
+    "七": 7,
+    "八": 8,
+    "九": 9,
+}
 
 SOFT_BREAK_PREFIXES = (
     "那么",
@@ -69,14 +85,40 @@ def _is_boundary(paragraph):
     )
 
 
+def parse_chapter_number(chapter_text):
+    """Convert Arabic or common Chinese chapter numerals to int."""
+    text = str(chapter_text).strip()
+    if not text:
+        return None
+    if text.isdigit():
+        return int(text)
+
+    if text == "十":
+        return 10
+    if text.startswith("十"):
+        return 10 + CN_DIGITS.get(text[1:], 0)
+    if "十" in text:
+        left, right = text.split("十", 1)
+        return CN_DIGITS.get(left, 0) * 10 + (CN_DIGITS.get(right, 0) if right else 0)
+    if text in CN_DIGITS:
+        return CN_DIGITS[text]
+    return None
+
+
 def extract_audio_title(text):
     """Extract a short chapter title from sermon text when possible."""
     if not text or not text.strip():
         return None
 
     lines = [line.strip() for line in re.split(r"\n+", text) if line.strip()]
-    if lines and _is_boundary(lines[0]) and CHAPTER_TITLE_PATTERN.fullmatch(lines[0].replace(" ", "")):
-        return re.sub(r"\s+", "", lines[0])
+    if lines:
+        first_compact = re.sub(r"\s+", "", lines[0])
+        first_match = CHAPTER_TITLE_PATTERN.fullmatch(first_compact)
+        if first_match:
+            book = first_match.group(1)
+            if book == "创世纪":
+                book = "创世记"
+            return f"《{book}》第{first_match.group(2)}章"
 
     compact = re.sub(r"\s+", "", text)
     match = CHAPTER_TITLE_PATTERN.search(compact)
@@ -86,7 +128,26 @@ def extract_audio_title(text):
     book = match.group(1)
     if book == "创世纪":
         book = "创世记"
-    return f"{book}第{match.group(2)}章"
+    return f"《{book}》第{match.group(2)}章"
+
+
+def build_audio_output_stem(text):
+    """Build an output filename stem like 出埃及记21章文本."""
+    title = extract_audio_title(text)
+    if not title:
+        return None
+
+    match = CHAPTER_TITLE_PATTERN.fullmatch(re.sub(r"\s+", "", title))
+    if not match:
+        return None
+
+    book = match.group(1)
+    if book == "创世纪":
+        book = "创世记"
+    chapter = parse_chapter_number(match.group(2))
+    if chapter is None:
+        return f"{book}文本"
+    return f"{book}{chapter}章文本"
 
 
 def _needs_soft_segmentation(text):
@@ -230,7 +291,7 @@ def structure_audio_paragraphs(text):
         cleaned = paragraph.strip()
         if not cleaned:
             continue
-        if title and re.sub(r"\s+", "", cleaned) == re.sub(r"\s+", "", title):
+        if title and re.sub(r"[\s《》]", "", cleaned) == re.sub(r"[\s《》]", "", title):
             continue
         role = "title" if _is_boundary(cleaned) and not title else "body"
         if role == "title" and title:

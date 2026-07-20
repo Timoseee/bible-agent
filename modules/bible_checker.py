@@ -22,6 +22,11 @@ def load_bible_database(database_path=DEFAULT_DATABASE_PATH):
     return json.loads(path.read_text(encoding="utf-8-sig"))
 
 
+def _canonical_term(term):
+    """Normalize a term for matching, ignoring book-title brackets."""
+    return str(term).replace("《", "").replace("》", "").strip()
+
+
 def _all_terms(database):
     terms = []
     for category in CATEGORIES:
@@ -30,10 +35,19 @@ def _all_terms(database):
     return terms
 
 
+def _canonical_lookup(database):
+    """Map canonical term text to its display form and category."""
+    lookup = {}
+    for category, term in _all_terms(database):
+        lookup[_canonical_term(term)] = {"category": category, "display": term}
+    return lookup
+
+
 def _find_category_for_suggestion(database, suggestion):
-    for category in CATEGORIES:
-        if suggestion in database.get(category, []):
-            return category
+    lookup = _canonical_lookup(database)
+    match = lookup.get(_canonical_term(suggestion))
+    if match:
+        return match["category"]
     return "terms"
 
 
@@ -51,34 +65,36 @@ def check_bible_terms(text, database=None):
 
     database = database or load_bible_database()
     issues = []
+    lookup = _canonical_lookup(database)
+    known_canonical = list(lookup.keys())
 
     for found, suggestion in database.get("common_mistakes", {}).items():
         if found in text:
             category = _find_category_for_suggestion(database, suggestion)
+            display_suggestion = lookup.get(_canonical_term(suggestion), {}).get("display", suggestion)
             _add_issue(
                 issues,
                 {
                     "type": ISSUE_TYPES.get(category, "terminology"),
                     "found": found,
-                    "suggestion": suggestion,
+                    "suggestion": display_suggestion,
                 },
             )
 
-    known_terms = _all_terms(database)
-    known_values = [term for _, term in known_terms]
     checked_tokens = set(database.get("common_mistakes", {}).keys())
 
     for raw_token in _candidate_terms(text):
-        if raw_token in checked_tokens or raw_token in known_values:
+        canonical_token = _canonical_term(raw_token)
+        if raw_token in checked_tokens or canonical_token in lookup:
             continue
-        if any(known_value in raw_token for known_value in known_values):
+        if any(known in canonical_token for known in known_canonical):
             continue
 
-        matches = get_close_matches(raw_token, known_values, n=1, cutoff=0.86)
+        matches = get_close_matches(canonical_token, known_canonical, n=1, cutoff=0.86)
         if matches:
-            suggestion = matches[0]
-            if suggestion != raw_token:
-                category = _find_category_for_suggestion(database, suggestion)
+            suggestion = lookup[matches[0]]["display"]
+            if _canonical_term(suggestion) != canonical_token:
+                category = lookup[matches[0]]["category"]
                 _add_issue(
                     issues,
                     {

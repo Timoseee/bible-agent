@@ -18,7 +18,7 @@ class Phase5ABibleCheckerTests(unittest.TestCase):
         result = check_bible_terms("创世纪中记载神创造天地。", self.database)
         self.assertEqual(result["issues"][0]["type"], "book_name")
         self.assertEqual(result["issues"][0]["found"], "创世纪")
-        self.assertEqual(result["issues"][0]["suggestion"], "创世记")
+        self.assertEqual(result["issues"][0]["suggestion"], "《创世记》")
 
     def test_bible_place_detected_as_valid(self):
         result = check_bible_terms("耶路撒冷是重要的地方。", self.database)

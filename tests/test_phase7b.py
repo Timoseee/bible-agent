@@ -8,6 +8,7 @@ from docx import Document
 
 from modules.audio_docx_formatter import generate_audio_docx
 from modules.paragraph_optimizer import (
+    build_audio_output_stem,
     extract_audio_title,
     optimize_audio_paragraphs,
     structure_audio_paragraphs,
@@ -115,7 +116,12 @@ class Phase7BAudioDocxTests(unittest.TestCase):
 
     def test_extracts_chapter_title(self):
         text = "各位亲爱的家人 主内平安 我们一同学习出埃及记的第十九章 这一章经文主要是"
-        self.assertEqual(extract_audio_title(text), "出埃及记第十九章")
+        self.assertEqual(extract_audio_title(text), "《出埃及记》第十九章")
+
+    def test_builds_audio_output_stem(self):
+        text = "各位亲爱的家人 我们一同学习出埃及记的第21章"
+        self.assertEqual(build_audio_output_stem(text), "出埃及记21章文本")
+        self.assertEqual(build_audio_output_stem("《出埃及记》第十九章"), "出埃及记19章文本")
 
     def test_structures_title_and_body_paragraphs(self):
         text = (
@@ -126,7 +132,7 @@ class Phase7BAudioDocxTests(unittest.TestCase):
         )
         structured = structure_audio_paragraphs(text)
         self.assertEqual(structured[0]["role"], "title")
-        self.assertEqual(structured[0]["text"], "出埃及记第十九章")
+        self.assertEqual(structured[0]["text"], "《出埃及记》第十九章")
         self.assertGreaterEqual(len([item for item in structured if item["role"] == "body"]), 2)
 
     def test_generated_docx_has_title_format(self):
@@ -136,7 +142,7 @@ class Phase7BAudioDocxTests(unittest.TestCase):
         generate_audio_docx(text, AUDIO_TEMPLATE, TEST_OUTPUT)
         output_document = Document(TEST_OUTPUT)
         title_paragraph = output_document.paragraphs[0]
-        self.assertEqual(title_paragraph.text, "出埃及记第十九章")
+        self.assertEqual(title_paragraph.text, "《出埃及记》第十九章")
         self.assertEqual(title_paragraph.runs[0].font.size, template_title.runs[0].font.size)
         self.assertGreaterEqual(len([p for p in output_document.paragraphs if p.text.strip()]), 2)
 
