@@ -7,6 +7,7 @@ from modules.ai_provider import AIProviderError, create_ai_provider
 from modules.audio_docx_formatter import generate_audio_docx
 from modules.audio_processor import analyze_audio
 from modules.audio_transcriber import AudioTranscriptionError, transcribe_audio
+from modules.batch_processor import process_folder
 from modules.bible_checker import check_bible_terms, load_bible_database
 from modules.config_loader import load_config
 from modules.correction_engine import correct_long_text, correct_text, correct_with_bible_check
@@ -292,6 +293,31 @@ def run_manual_audio_docx_demo():
     print(f"Paragraphs inserted: {result['paragraphs_inserted']}")
 
 
+def print_batch_results(results):
+    """Print a compact summary for folder batch processing."""
+    if not results:
+        print("No supported files found in this folder.")
+        return
+
+    succeeded = 0
+    failed = 0
+
+    for index, result in enumerate(results, start=1):
+        status = result.get("status")
+        if status == "success":
+            succeeded += 1
+            print(f"\nItem {index}: success")
+            print(f"Input: {result.get('input')}")
+            print(f"Output: {result.get('output')}")
+        else:
+            failed += 1
+            print(f"\nItem {index}: failed")
+            print(f"Input: {result.get('input')}")
+            print(f"Error: {result.get('error')}")
+
+    print(f"\nBatch completed. Success: {succeeded}, Failed: {failed}")
+
+
 def print_classification_result(input_path, config):
     """Print readable classification and transcription status."""
     classification = classify_input(input_path)
@@ -363,6 +389,19 @@ def main():
             print(f"Error: {result.get('error')}")
         return
 
+    if "--batch" in sys.argv:
+        try:
+            folder_path = sys.argv[sys.argv.index("--batch") + 1]
+        except IndexError:
+            print("Missing folder path after --batch.")
+            return
+
+        print("Batch processing started.")
+        print(f"Folder: {folder_path}")
+        results = process_folder(folder_path)
+        print_batch_results(results)
+        return
+
     config = load_config()
     print("Configuration loaded.")
 
@@ -408,7 +447,7 @@ def main():
             "or --demo-long-correction, --demo-bible-check, --demo-bible-correction, "
             "--demo-image-ocr, --demo-image-sort, --demo-watermark-clean, "
             "--demo-template-analysis, --demo-docx-generation, --demo-image-template-analysis, "
-            "--demo-style-mapping, or --demo-audio-docx."
+            "--demo-style-mapping, --demo-audio-docx, or --batch <folder_path>."
         )
 
     print("\nInput scan results:")

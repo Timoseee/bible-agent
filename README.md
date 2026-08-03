@@ -76,6 +76,31 @@ python main.py --process input/audio/sermon.mp3
 python main.py --process input/images/chapter24
 ```
 
+## Desktop application
+
+The local PySide6 desktop application lets users select audio files or image folders,
+run the existing automatic pipeline in a background thread, follow progress and logs,
+and open generated DOCX files. The GUI does not duplicate backend processing logic.
+
+Install the GUI dependency and start it with:
+
+```bash
+pip install -r requirements_gui.txt
+python frontend/app.py
+```
+
+For a Windows executable, install PyInstaller and package the entry point:
+
+```bash
+pyinstaller --name BibleAI --windowed frontend/app.py
+```
+
+GUI tests use mocked processing and do not require real API calls:
+
+```bash
+python -m unittest tests.test_gui
+```
+
 Run all tests:
 
 ```bash
