@@ -113,6 +113,45 @@ class Phase7DFinalPipelineTests(unittest.TestCase):
         document = Document(output_path)
         self.assertGreater(len(document.paragraphs), 0)
 
+        document_text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn("标题", document_text)
+        self.assertNotEqual(document.paragraphs[0].text, "出埃及记24章1/18节《组员回应补充》")
+        self.assertTrue(any(run.bold for paragraph in document.paragraphs for run in paragraph.runs))
+
+    def test_image_workflow_output_contains_reviewed_text(self):
+        image_folder = TEST_DIR / "images"
+        _create_image(image_folder / "page.png")
+        result = process_input(image_folder, provider=MockProvider(), vision_provider=MockProvider())
+
+        self.assertTrue(result["success"])
+        document = Document(result["output"])
+        document_text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn("图像OCR文本。", document_text)
+        self.assertNotIn("[IMAGE_001]", document_text)
+
+    def test_image_ocr_text_is_rendered_without_placeholders(self):
+        image_folder = TEST_DIR / "images"
+        _create_image(image_folder / "page.png")
+        ocr_text = "出埃及记第二十四章\n摩西上山"
+        with patch("modules.pipeline_controller.extract_text_from_images") as mock_ocr:
+            mock_ocr.return_value = {
+                "text": ocr_text,
+                "images_processed": 1,
+                "results": [{"success": True, "text": ocr_text}],
+            }
+            result = process_input(
+                image_folder,
+                provider=MockProvider(),
+                vision_provider=MockProvider(),
+            )
+
+        self.assertTrue(result["success"])
+        document = Document(result["output"])
+        document_text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+        self.assertIn("出埃及记第二十四章", document_text)
+        self.assertIn("摩西上山", document_text)
+        self.assertNotIn("[IMAGE_001]", document_text)
+
     def test_error_handling(self):
         audio_path = TEST_DIR / "mock_audio.mp3"
         audio_path.touch()

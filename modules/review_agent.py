@@ -1,11 +1,10 @@
 ﻿"""Review agent for checking corrected sermon text."""
 
 import json
-from pathlib import Path
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-REVIEW_PROMPT_PATH = BASE_DIR / "prompts" / "review_prompt.txt"
+REVIEW_PROMPT_PATH = resource_path("prompts/review_prompt.txt")
 
 
 def load_review_prompt():

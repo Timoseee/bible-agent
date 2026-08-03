@@ -1,17 +1,18 @@
 ﻿"""Configuration loading for the BibleAI project."""
 
 import os
-from pathlib import Path
-
 from dotenv import load_dotenv
+from modules.resource_path import resource_path, writable_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = BASE_DIR / ".env"
+ENV_PATH = writable_path(".env") if writable_path(".env").exists() else resource_path(".env")
 
 
 def load_config():
     """Load environment configuration and return known settings."""
+    global ENV_PATH
+    user_env_path = writable_path(".env")
+    ENV_PATH = user_env_path if user_env_path.exists() else resource_path(".env")
     load_dotenv(ENV_PATH, encoding="utf-8-sig")
     openai_api_key = os.getenv("OPENAI_API_KEY", "")
     deepseek_api_key = os.getenv("DEEPSEEK_API_KEY", "")

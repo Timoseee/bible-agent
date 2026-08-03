@@ -7,8 +7,12 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QMessageBox
 
 from frontend.main_window import MainWindow
+from modules.config_loader import load_config
+from modules.resource_path import writable_path
+from modules.startup_validation import validate_startup_resources
 
 
 def build_stylesheet():
@@ -32,12 +36,18 @@ def build_stylesheet():
 
 
 def main():
-    log_dir = ROOT / "logs"; log_dir.mkdir(exist_ok=True)
+    log_dir = writable_path("logs"); log_dir.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(filename=log_dir / "gui_errors.log", level=logging.ERROR,
                         format="%(asctime)s %(levelname)s %(message)s")
     app = QApplication(sys.argv)
     app.setApplicationName("BibleAI")
     app.setStyleSheet(build_stylesheet())
+    resource_errors = validate_startup_resources()
+    if resource_errors:
+        QMessageBox.critical(app.activeWindow(), "BibleAI startup error", "\n".join(resource_errors))
+        return 1
+    if not load_config()["env_path"].exists():
+        QMessageBox.warning(None, "API configuration missing", "API configuration missing. Please configure your API key.")
     window = MainWindow(); window.show()
     return app.exec()
 

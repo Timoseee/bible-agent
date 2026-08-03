@@ -1,17 +1,15 @@
 ﻿"""Correction engine for proofreading short and long text."""
 
-from pathlib import Path
-
 from modules.bible_checker import check_bible_terms, load_bible_database
 from modules.bible_context_builder import build_bible_context
 from modules.correction_validator import validate_preservation
 from modules.review_agent import review_correction
 from modules.text_chunker import DEFAULT_MAX_LENGTH, chunk_text
 from modules.text_merger import merge_chunks
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-CORRECTION_PROMPT_PATH = BASE_DIR / "prompts" / "correction_prompt.txt"
+CORRECTION_PROMPT_PATH = resource_path("prompts/correction_prompt.txt")
 
 
 def load_correction_prompt():

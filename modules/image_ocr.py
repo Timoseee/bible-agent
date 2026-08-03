@@ -3,10 +3,10 @@
 from pathlib import Path
 
 from PIL import Image, UnidentifiedImageError
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-OCR_PROMPT_PATH = BASE_DIR / "prompts" / "ocr_prompt.txt"
+OCR_PROMPT_PATH = resource_path("prompts/ocr_prompt.txt")
 SUPPORTED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png"}
 
 

@@ -1,14 +1,12 @@
 ﻿"""DOCX template management for BibleAI."""
 
-from pathlib import Path
-
 from docx import Document
 
 from modules.docx_analyzer import analyze_template
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-TEMPLATE_DIR = BASE_DIR / "templates"
+TEMPLATE_DIR = resource_path("templates")
 TEMPLATE_FILES = {
     "audio": TEMPLATE_DIR / "audio_template.docx",
     "image": TEMPLATE_DIR / "image_template.docx",

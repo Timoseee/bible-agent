@@ -4,9 +4,10 @@ import json
 import re
 from pathlib import Path
 
+from modules.resource_path import resource_path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_WATERMARK_DATABASE_PATH = BASE_DIR / "database" / "watermarks.json"
+
+DEFAULT_WATERMARK_DATABASE_PATH = resource_path("database/watermarks.json")
 
 
 def load_watermark_database(database_path=DEFAULT_WATERMARK_DATABASE_PATH):

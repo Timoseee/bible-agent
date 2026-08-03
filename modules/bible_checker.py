@@ -3,10 +3,10 @@
 import json
 from difflib import get_close_matches
 from pathlib import Path
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-DEFAULT_DATABASE_PATH = BASE_DIR / "database" / "bible_terms.json"
+DEFAULT_DATABASE_PATH = resource_path("database/bible_terms.json")
 CATEGORIES = ("books", "people", "places", "terms")
 ISSUE_TYPES = {
     "books": "book_name",
