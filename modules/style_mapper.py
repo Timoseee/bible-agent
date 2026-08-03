@@ -5,10 +5,10 @@ from collections import Counter
 from pathlib import Path
 
 from modules.image_docx_analyzer import analyze_image_template
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-STYLE_DATABASE_PATH = BASE_DIR / "database" / "docx_styles.json"
+STYLE_DATABASE_PATH = resource_path("database/docx_styles.json")
 
 
 def _first_present_run(runs):
@@ -25,12 +25,32 @@ def _most_common(values):
     return Counter(filtered).most_common(1)[0][0]
 
 
+def _load_saved_mapping(template_path):
+    """Load the persisted style mapping for a template, when available."""
+    if not STYLE_DATABASE_PATH.exists():
+        return {}
+
+    database = json.loads(STYLE_DATABASE_PATH.read_text(encoding="utf-8-sig"))
+    path = Path(template_path)
+    return database.get(path.stem, database.get(path.name, {}))
+
+
+def _merge_style(derived, saved):
+    """Prefer explicit persisted values while retaining newly derived values."""
+    merged = dict(derived)
+    for key, value in (saved or {}).items():
+        if value is not None:
+            merged[key] = value
+    return merged
+
+
 def build_style_mapping(template_path):
     """Extract reusable style definitions from the image template."""
     analysis = analyze_image_template(template_path)
     runs = analysis["runs"]
     styles = analysis["styles"]
     format_patterns = analysis["format_patterns"]
+    saved = _load_saved_mapping(template_path)
 
     first_run = _first_present_run(runs)
     body_style_name = _most_common([pattern.get("style") for pattern in format_patterns])
@@ -38,7 +58,7 @@ def build_style_mapping(template_path):
 
     mapping = {
         "template": analysis["filename"],
-        "title_style": {
+        "title_style": _merge_style({
             "style": format_patterns[0]["style"] if format_patterns else None,
             "font": first_run.get("font"),
             "size": first_run.get("size"),
@@ -46,8 +66,8 @@ def build_style_mapping(template_path):
             "bold": first_run.get("bold"),
             "italic": first_run.get("italic"),
             "underline": first_run.get("underline"),
-        },
-        "body_style": {
+        }, saved.get("title_style")),
+        "body_style": _merge_style({
             "style": body_style_name,
             "font": _most_common([run.get("font") for run in body_runs]),
             "size": _most_common([run.get("size") for run in body_runs]),
@@ -55,16 +75,16 @@ def build_style_mapping(template_path):
             "bold": _most_common([run.get("bold") for run in body_runs]),
             "italic": _most_common([run.get("italic") for run in body_runs]),
             "underline": _most_common([run.get("underline") for run in body_runs]),
-        },
-        "verse_style": {
+        }, saved.get("body_style")),
+        "verse_style": _merge_style({
             "style": body_style_name,
             "font": _most_common([run.get("font") for run in body_runs]),
             "size": _most_common([run.get("size") for run in body_runs]),
             "color": _most_common([run.get("color") for run in body_runs]),
-        },
+        }, saved.get("verse_style")),
         "styles": styles,
-        "colors": analysis["colors"],
-        "fonts": analysis["fonts"],
+        "colors": sorted(set(analysis["colors"]) | set(saved.get("colors", []))),
+        "fonts": sorted(set(analysis["fonts"]) | set(saved.get("fonts", []))),
         "sections": analysis["sections"],
     }
 

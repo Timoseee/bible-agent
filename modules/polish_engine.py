@@ -1,12 +1,10 @@
 """Editorial polish stage for readable sermon DOCX output."""
 
-from pathlib import Path
-
 from modules.text_chunker import chunk_text
+from modules.resource_path import resource_path
 
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-POLISH_PROMPT_PATH = BASE_DIR / "prompts" / "polish_prompt.txt"
+POLISH_PROMPT_PATH = resource_path("prompts/polish_prompt.txt")
 DEFAULT_POLISH_CHUNK_LENGTH = 2500
 MIN_KEEP_RATIO = 0.40
 

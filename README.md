@@ -25,11 +25,12 @@ INPUT
 ```text
 MP3/M4A
   -> Whisper transcription
-  -> Bible terminology checking
-  -> Correction Agent
-  -> Preservation Validator
+  -> Text cleaning
+  -> Bible Checker
+  -> DeepSeek/OpenAI Correction
   -> Review Agent
-  -> Audio DOCX generation
+  -> Audio DOCX Generator
+  -> Final DOCX
 ```
 
 Audio output uses `templates/audio_template.docx` through `audio_docx_formatter.py` and `paragraph_optimizer.py`.
@@ -89,10 +90,28 @@ pip install -r requirements_gui.txt
 python frontend/app.py
 ```
 
-For a Windows executable, install PyInstaller and package the entry point:
+## Running from source
 
 ```bash
-pyinstaller --name BibleAI --windowed frontend/app.py
+python frontend/app.py
+```
+
+## Building EXE
+
+Double-click `build.bat`, or run it from a terminal. The build uses
+`build_exe.spec` and creates `dist/BibleAI/BibleAI.exe`.
+
+## Running Windows version
+
+Double-click `BibleAI.exe` inside `dist/BibleAI/`. Keep the adjacent
+`templates`, `database`, and `prompts` folders with the executable. Place a
+user-created `.env` beside the executable to configure an API key; it is never
+packaged into the executable.
+
+For manual packaging, install PyInstaller and run:
+
+```bash
+python -m PyInstaller --clean --noconfirm build_exe.spec
 ```
 
 GUI tests use mocked processing and do not require real API calls:

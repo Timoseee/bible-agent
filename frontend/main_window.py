@@ -9,6 +9,7 @@ from PySide6.QtWidgets import (QDialog, QDialogButtonBox, QFormLayout, QHBoxLayo
     QLineEdit, QMainWindow, QMessageBox, QPushButton, QComboBox, QVBoxLayout, QWidget)
 
 from modules.config_loader import load_config
+from modules.resource_path import writable_path
 from frontend.components.file_selector import FileSelector
 from frontend.components.log_panel import LogPanel
 from frontend.components.progress_panel import ProgressPanel
@@ -38,8 +39,7 @@ class SettingsDialog(QDialog):
         form.addRow(buttons)
 
     def save(self):
-        root = Path(__file__).resolve().parent.parent
-        env_path = root / ".env"
+        env_path = writable_path(".env")
         values = {"AI_PROVIDER": self.provider.currentText().lower(), "VISION_PROVIDER": self.provider.currentText().lower()}
         if self.api_key.text().strip():
             key_name = "OPENAI_API_KEY" if values["AI_PROVIDER"] == "openai" else "DEEPSEEK_API_KEY"
@@ -130,7 +130,7 @@ class MainWindow(QMainWindow):
             QDesktopServices.openUrl(QUrl.fromLocalFile(self.output_path))
 
     def open_folder(self):
-        folder = Path(self.output_path).parent if self.output_path else Path(__file__).resolve().parent.parent / "output" / "docx"
+        folder = Path(self.output_path).parent if self.output_path else writable_path("output/docx")
         folder.mkdir(parents=True, exist_ok=True)
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 

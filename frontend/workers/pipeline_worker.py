@@ -21,8 +21,8 @@ class PipelineWorker(QObject):
         try:
             input_type = "image_folder" if Path(self.input_path).is_dir() else "audio"
             stages = (["Collecting images…", "Ordering images…", "Reading image text…"]
-                      if input_type == "image_folder" else ["Transcribing audio…"])
-            stages += ["Checking Bible terminology…", "Correcting text…", "Reviewing…", "Generating DOCX…"]
+                      if input_type == "image_folder" else ["Whisper transcription…"])
+            stages += ["Text cleaning…", "Bible checking…", "AI correction…", "Review agent…", "Generating DOCX…"]
             self.log.emit("Processing started.", "INFO")
             for index, stage in enumerate(stages[:1], 1):
                 self.progress.emit(5, stage)
