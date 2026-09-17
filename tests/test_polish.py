@@ -31,8 +31,8 @@ class PolishEngineTests(unittest.TestCase):
             "出埃及记第十九章\n\n各位亲爱的家人，主内平安。",
             "神在西奈山上呼唤摩西。",
         ]
-        text = "各位亲爱的家人 主内平安 " + ("我们一同学习出埃及记第十九章。" * 200)
-        result = polish_sermon_text(text, provider, max_length=200)
+        text = "各位亲爱的家人 主内平安。\n\n神在西奈山上呼唤摩西。"
+        result = polish_sermon_text(text, provider, max_length=20)
         self.assertTrue(result["success"])
         self.assertGreaterEqual(result["chunks_processed"], 2)
         self.assertIn("出埃及记第十九章", result["polished_text"])
@@ -46,6 +46,17 @@ class PolishEngineTests(unittest.TestCase):
         result = polish_sermon_text(original, provider)
         self.assertFalse(result["success"])
         self.assertEqual(result["polished_text"], original)
+
+    def test_failed_or_empty_chunk_is_not_success(self):
+        original = "神呼唤摩西。\n\n摩西回应神。"
+        for second_result in (RuntimeError("connection failed"), "", None):
+            with self.subTest(second_result=second_result):
+                provider = Mock()
+                provider.generate.side_effect = ["神呼唤摩西。", second_result]
+                result = polish_sermon_text(original, provider, max_length=10)
+                self.assertFalse(result["success"])
+                self.assertEqual(result["polished_text"], original)
+                self.assertTrue(result["warnings"])
 
 
 if __name__ == "__main__":

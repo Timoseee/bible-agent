@@ -59,10 +59,21 @@ def polish_sermon_text(text, provider, max_length=DEFAULT_POLISH_CHUNK_LENGTH):
     for index, chunk in enumerate(original_chunks):
         content = _chunk_instruction(index, len(original_chunks)) + chunk
         try:
-            polished_chunks.append(provider.generate(prompt, content))
+            polished_chunk = provider.generate(prompt, content)
+            if not isinstance(polished_chunk, str) or not polished_chunk.strip():
+                raise ValueError("Polish returned empty text")
+            polished_chunks.append(polished_chunk)
         except Exception as error:
             polished_chunks.append(chunk)
             warnings.append(f"Chunk {index + 1} polish failed, original chunk preserved: {error}")
+
+    if warnings:
+        return {
+            "polished_text": text,
+            "success": False,
+            "chunks_processed": len(original_chunks),
+            "warnings": warnings,
+        }
 
     polished_text = _merge_polished_chunks(polished_chunks)
 

@@ -1,12 +1,18 @@
 """Image DOCX rendering using template-derived style mappings."""
 
 from pathlib import Path
+import re
 
 from docx import Document
-from docx.shared import Pt, RGBColor
+from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.shared import Inches, Pt, RGBColor
 
-from modules.document_structure_analyzer import analyze_text_structure
 
+BODY_SIDE_MARGIN_INCHES = 0.85
+HEADING_LINE_PATTERN = re.compile(r"^.{1,24}[：:]$")
+PARAGRAPH_START_PATTERN = re.compile(
+    r"^(?:\d+[:：]\d+|[①②③④⑤⑥⑦⑧⑨⑩]|[一二三四五六七八九十]+[、.．])"
+)
 
 def _clear_template_body(document):
     """Remove sample content but retain the template body properties and sections."""
@@ -33,6 +39,47 @@ def _insert_processed_text(document, structure, style_mapping):
     for text in structure["body"]:
         inserted.append(_add_styled_paragraph(document, text, body_style))
     return inserted
+
+
+def _insert_exact_text(document, text, style_mapping):
+    """Insert source text as natural paragraphs without changing character order."""
+    body_style = dict(style_mapping.get("body_style", {}))
+    body_style["color"] = "000000"
+    inserted = []
+    for paragraph_text in paragraphs_from_text(text):
+        paragraph = _add_styled_paragraph(document, paragraph_text, body_style)
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        paragraph.paragraph_format.space_after = Pt(6)
+        paragraph.paragraph_format.line_spacing = 1.25
+        inserted.append(paragraph)
+    return inserted
+
+
+def paragraphs_from_text(text):
+    """Merge OCR wrap lines, retaining blank-line and semantic paragraph breaks."""
+    lines = str(text).replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    paragraphs = []
+    current = []
+
+    def flush():
+        if current:
+            paragraphs.append("".join(current))
+            current.clear()
+
+    for line in lines:
+        stripped = line.strip()
+        if not stripped:
+            flush()
+            continue
+        if HEADING_LINE_PATTERN.fullmatch(stripped):
+            flush()
+            paragraphs.append(stripped)
+            continue
+        if PARAGRAPH_START_PATTERN.match(stripped):
+            flush()
+        current.append(stripped)
+    flush()
+    return paragraphs
 
 
 def prepare_image_document(text, style_mapping, template_path):
@@ -111,7 +158,7 @@ def _add_styled_paragraph(document, text, style_definition):
 
 
 def generate_image_docx(text, style_mapping, template_path, output_path, structure=None):
-    """Generate an image-based DOCX using template-derived style mappings."""
+    """Generate a DOCX with the corrected text in exact source-line order."""
     template = Path(template_path)
     output = Path(output_path)
 
@@ -120,10 +167,11 @@ def generate_image_docx(text, style_mapping, template_path, output_path, structu
 
     output.parent.mkdir(parents=True, exist_ok=True)
     document = Document(template)
-    structure = structure or analyze_text_structure(text)
-
+    for section in document.sections:
+        section.left_margin = Inches(BODY_SIDE_MARGIN_INCHES)
+        section.right_margin = Inches(BODY_SIDE_MARGIN_INCHES)
     _clear_template_body(document)
-    inserted = _insert_processed_text(document, structure, style_mapping)
+    inserted = _insert_exact_text(document, text, style_mapping)
     if not inserted:
         raise ValueError("Image text is empty; refusing to generate an unchanged template")
 
@@ -132,7 +180,12 @@ def generate_image_docx(text, style_mapping, template_path, output_path, structu
     if not output.exists():
         raise RuntimeError(f"DOCX output was not created: {output}")
 
-    Document(output)
+    verified_document = Document(output)
+    expected_lines = paragraphs_from_text(text)
+    actual_lines = [paragraph.text for paragraph in verified_document.paragraphs]
+    if actual_lines != expected_lines:
+        output.unlink(missing_ok=True)
+        raise RuntimeError("Saved DOCX content does not exactly match the corrected text")
 
     return {
         "output_path": str(output),

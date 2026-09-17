@@ -3,5 +3,10 @@ python-dotenv
 mutagen
 openai
 pydub
+faster-whisper
+opencc-python-reimplemented==0.1.7
 audioop-lts; python_version >= "3.13"
 Pillow
+rapidocr==3.9.2
+onnxruntime>=1.27.0,<2
+Send2Trash>=1.8.3,<2

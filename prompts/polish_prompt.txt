@@ -14,6 +14,7 @@ You MUST do all of the following:
 6. Remove spoken filler and repeated tone words that do not carry meaning, especially: 啊、呢、吧、呀、嘛、哦、额额、这个这个.
 7. Remove obvious repeated words or duplicated short phrases caused by speech hesitation.
 8. Keep Bible names and key theological wording accurate. Prefer Chinese Union Version spellings when fixing clear errors.
+9. Output Simplified Chinese only, even when the source contains Traditional Chinese.
 
 You MUST NOT:
 

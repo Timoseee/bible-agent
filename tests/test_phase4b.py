@@ -47,11 +47,11 @@ class Phase4BLongTextTests(unittest.TestCase):
     def test_failed_chunk_keeps_original_content(self):
         text = "第一段。\n\n这一段会失败。\n\n第三段。"
         result = correct_long_text(text, FailingProvider(), max_length=8)
-        self.assertTrue(result["success"])
+        self.assertFalse(result["success"])
         self.assertIn("这一段会失败。", result["corrected_text"])
         self.assertEqual(
             result["warnings"],
-            ["Chunk 2 correction failed, original text preserved"],
+            ["Chunk 2 correction failed, original text preserved: mock failure"],
         )
 
     def test_merge_keeps_correct_order(self):

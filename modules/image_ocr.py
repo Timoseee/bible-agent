@@ -47,12 +47,42 @@ def extract_text_from_image(image_path, provider):
             "error": error,
         }
 
-    if provider is None or not hasattr(provider, "generate_from_image"):
+    if provider is None or not (
+        hasattr(provider, "extract_page") or hasattr(provider, "generate_from_image")
+    ):
         return {
             "filename": path.name,
             "text": "",
             "success": False,
             "error": "A vision-capable provider is required.",
+        }
+
+    if hasattr(provider, "extract_page"):
+        try:
+            page = dict(provider.extract_page(path) or {})
+        except Exception as error:
+            return {
+                "filename": path.name,
+                "text": "",
+                "confidence": 0.0,
+                "character_count": 0,
+                "success": False,
+                "error": str(error),
+            }
+        text = str(page.get("text", "") or "")
+        return {
+            "filename": path.name,
+            "text": text,
+            "confidence": float(page.get("confidence", 0.0) or 0.0),
+            "character_count": int(
+                page.get(
+                    "character_count",
+                    sum(1 for character in text if character.isalnum()),
+                )
+                or 0
+            ),
+            "success": bool(page.get("success", bool(text.strip()))),
+            "error": str(page.get("error", "") or ""),
         }
 
     prompt = load_ocr_prompt()
@@ -61,6 +91,10 @@ def extract_text_from_image(image_path, provider):
     return {
         "filename": path.name,
         "text": text or "",
+        "confidence": 1.0 if str(text or "").strip() else 0.0,
+        "character_count": sum(
+            1 for character in str(text or "") if character.isalnum()
+        ),
         "success": True,
     }
 
@@ -83,5 +117,6 @@ def extract_text_from_images(image_paths, provider):
     return {
         "text": "\n\n".join(combined_parts),
         "images_processed": len(image_paths),
+        "images_succeeded": sum(1 for result in results if result.get("success")),
         "results": results,
     }

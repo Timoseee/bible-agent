@@ -8,6 +8,7 @@ from docx.oxml.ns import qn
 from docx.shared import RGBColor
 
 from modules.paragraph_optimizer import structure_audio_paragraphs
+from modules.text_cleaning_pipeline import to_simplified_chinese
 
 
 def _capture_paragraph_format(paragraph):
@@ -98,7 +99,7 @@ def generate_audio_docx(text, template_path, output_path):
     if not template.exists():
         raise FileNotFoundError(f"Template file not found: {template}")
 
-    structured = structure_audio_paragraphs(text)
+    structured = structure_audio_paragraphs(to_simplified_chinese(text))
     output.parent.mkdir(parents=True, exist_ok=True)
 
     document = Document(template)

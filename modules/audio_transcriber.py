@@ -3,15 +3,21 @@
 import tempfile
 from pathlib import Path
 
-from openai import OpenAI
+from openai import OpenAIError
 
 from modules.audio_processor import MAX_DURATION_MINUTES, analyze_audio
 from modules.config_loader import load_config
+from modules.network_client import (
+    NetworkConfigurationError,
+    create_openai_client,
+    describe_api_error,
+)
 
 
 SUPPORTED_AUDIO_EXTENSIONS = {".mp3", ".m4a"}
 MAX_DIRECT_UPLOAD_MB = 24
 CHUNK_LENGTH_MINUTES = 20
+SUPPORTED_TRANSCRIPTION_PROVIDERS = {"local", "openai"}
 
 
 class AudioTranscriptionError(Exception):
@@ -42,6 +48,40 @@ def _transcribe_file(client, file_path):
         )
 
     return getattr(transcription, "text", "")
+
+
+def _transcribe_local(audio_path, config):
+    """Transcribe audio on this computer without sending it to an API."""
+    try:
+        from faster_whisper import WhisperModel
+    except ImportError as error:
+        raise AudioTranscriptionError(
+            "Local transcription requires faster-whisper. Install project requirements first."
+        ) from error
+
+    model_name = config.get("local_whisper_model", "small")
+    device = config.get("local_whisper_device", "cpu")
+    compute_type = config.get("local_whisper_compute_type", "int8")
+
+    try:
+        model = WhisperModel(model_name, device=device, compute_type=compute_type)
+        segments, info = model.transcribe(
+            str(audio_path),
+            language="zh",
+            beam_size=5,
+            vad_filter=True,
+        )
+        text = "".join(segment.text for segment in segments).strip()
+    except Exception as error:
+        raise AudioTranscriptionError(f"Local Whisper transcription failed: {error}") from error
+
+    return {
+        "filename": Path(audio_path).name,
+        "language": getattr(info, "language", "zh") or "zh",
+        "text": text,
+        "provider": "local",
+        "model": model_name,
+    }
 
 
 def _split_audio_to_temp_files(audio_path, temp_dir):
@@ -78,8 +118,13 @@ def transcribe_audio(audio_path):
     """
     path = _validate_audio_path(audio_path)
     config = load_config()
+    provider = config.get("audio_transcription_provider", "openai")
+    if provider not in SUPPORTED_TRANSCRIPTION_PROVIDERS:
+        raise AudioTranscriptionError(
+            "AUDIO_TRANSCRIPTION_PROVIDER must be 'local' or 'openai'."
+        )
 
-    if not config["openai_api_key"]:
+    if provider == "openai" and not config.get("openai_api_key"):
         raise AudioTranscriptionError("OPENAI_API_KEY is not configured in .env.")
 
     audio_info = analyze_audio(path)
@@ -90,16 +135,28 @@ def transcribe_audio(audio_path):
     if audio_info["duration_minutes"] > MAX_DURATION_MINUTES:
         raise AudioTranscriptionError("Audio is longer than the 2 hour maximum supported duration.")
 
-    client = OpenAI(api_key=config["openai_api_key"], timeout=600.0)
-    text_parts = []
+    if provider == "local":
+        return _transcribe_local(path, config)
 
-    if audio_info["size_mb"] <= MAX_DIRECT_UPLOAD_MB:
-        text_parts.append(_transcribe_file(client, path))
-    else:
-        with tempfile.TemporaryDirectory() as temp_dir:
-            chunk_paths = _split_audio_to_temp_files(path, temp_dir)
-            for chunk_path in chunk_paths:
-                text_parts.append(_transcribe_file(client, chunk_path))
+    try:
+        client = create_openai_client(
+            config["openai_api_key"],
+            proxy=config.get("api_proxy", ""),
+            timeout=600.0,
+        )
+        text_parts = []
+
+        if audio_info["size_mb"] <= MAX_DIRECT_UPLOAD_MB:
+            text_parts.append(_transcribe_file(client, path))
+        else:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                chunk_paths = _split_audio_to_temp_files(path, temp_dir)
+                for chunk_path in chunk_paths:
+                    text_parts.append(_transcribe_file(client, chunk_path))
+    except NetworkConfigurationError as error:
+        raise AudioTranscriptionError(str(error)) from error
+    except OpenAIError as error:
+        raise AudioTranscriptionError(describe_api_error("OpenAI", error)) from error
 
     merged_text = "\n".join(part.strip() for part in text_parts if part and part.strip())
 
@@ -107,4 +164,6 @@ def transcribe_audio(audio_path):
         "filename": path.name,
         "language": "zh",
         "text": merged_text,
+        "provider": "openai",
+        "model": "whisper-1",
     }

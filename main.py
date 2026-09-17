@@ -1,5 +1,6 @@
 ﻿"""Entry point for the BibleAI sermon processing system."""
 
+import json
 import sys
 from pathlib import Path
 
@@ -336,7 +337,10 @@ def print_classification_result(input_path, config):
             print(f"Status: {audio_info['warning']}")
             return
 
-        if not config["openai_api_key_configured"]:
+        if (
+            config.get("audio_transcription_provider", "openai") == "openai"
+            and not config["openai_api_key_configured"]
+        ):
             print("Status: Ready for transcription. Add OPENAI_API_KEY to .env to run Whisper.")
             return
 
@@ -367,6 +371,20 @@ def main():
     # 5. Check Bible terminology and references.
     # 6. Apply the correct DOCX template.
     # 7. Generate a professionally formatted DOCX file.
+
+    if "--watch-worker" in sys.argv:
+        try:
+            input_path = sys.argv[sys.argv.index("--watch-worker") + 1]
+        except IndexError:
+            result = {
+                "success": False,
+                "step": "input_detection",
+                "error": "Missing input path after --watch-worker.",
+            }
+        else:
+            result = process_input(input_path)
+        print("__BIBLEAI_WATCH_RESULT__=" + json.dumps(result, ensure_ascii=False))
+        return
 
     if "--process" in sys.argv:
         try:

@@ -21,7 +21,7 @@ Reject the correction if:
 3. Meaning was changed.
 4. Speaker's style was rewritten.
 5. Theological interpretation was changed.
-6. The correction was unnecessary.
+6. An unnecessary change was made.
 
 Accept only:
 
@@ -35,6 +35,10 @@ If uncertain:
 Reject the correction and keep the original text.
 
 Return JSON only:
+
+Keep the entire JSON response concise and under 500 Chinese characters.
+Return at most 3 representative issues. Do not enumerate every correction.
+Keep summary under 100 Chinese characters.
 
 {
 "approved": true/false,

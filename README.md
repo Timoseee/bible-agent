@@ -1,10 +1,11 @@
 ﻿# BibleAI
 
-BibleAI is an AI-assisted Bible sermon processing system. very cool.
+BibleAI is an AI-assisted Bible sermon pipeline for local audio transcription,
+image OCR, correction, review, and DOCX export.
 
 Completed through Phase 7D:
 
-- Audio workflow: MP3/M4A -> Whisper transcription -> correction/review -> audio DOCX.
+- Audio workflow: MP3/M4A -> local faster-whisper or OpenAI Whisper -> correction/review -> audio DOCX.
 - Image workflow: image folder -> ordering -> OCR -> watermark cleaning -> correction/review -> image DOCX.
 - Safety layers: Bible terminology suggestions, preservation validation, and review approval.
 
@@ -35,6 +36,11 @@ MP3/M4A
 
 Audio output uses `templates/audio_template.docx` through `audio_docx_formatter.py` and `paragraph_optimizer.py`.
 
+Audio transcripts and Word output are normalized to Simplified Chinese with OpenCC.
+If correction, review, or editorial polish fails, processing reports the failed
+stage and does not export an uncorrected transcript as a finished document.
+Leave `API_PROXY` empty for direct API access; set it only when that proxy is running.
+
 ## Image Workflow
 
 ```text
@@ -46,10 +52,24 @@ Image file/folder
   -> Correction Agent
   -> Preservation Validator
   -> Review Agent
+  -> Two-round Full-text Audit
+  -> Candidate Review and Deterministic Edits
   -> Image DOCX generation
 ```
 
 Image output uses `templates/image_template.docx`, `image_docx_renderer.py`, `style_mapper.py`, and `image_docx_analyzer.py`. Style data is extracted from the real template rather than hardcoded.
+
+### One-click image-to-Word
+
+1. Run `setup_image_to_doc.bat` once to install RapidOCR, ONNX Runtime, and Recycle Bin support.
+2. Put one batch of JPG/JPEG/PNG files directly in `input/images`.
+3. Double-click `start_image_to_doc.bat`.
+
+Images are naturally ordered by filename, read locally, corrected and reviewed with
+DeepSeek V4 Flash, and merged into `output/docx/图片文本_YYYYMMDD_HHMMSS.docx`.
+Only after the DOCX is successfully generated and reopened are source images moved
+to the Windows Recycle Bin. Any OCR, correction, review, or document failure leaves
+the full source batch in place.
 
 ## Key Commands
 
@@ -67,7 +87,19 @@ Configure `.env`:
 OPENAI_API_KEY=
 DEEPSEEK_API_KEY=
 AI_PROVIDER=deepseek
-VISION_PROVIDER=deepseek
+LOCAL_OCR_PROVIDER=rapidocr
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_API_TIMEOUT_SECONDS=600
+DEEPSEEK_API_MAX_RETRIES=3
+OCR_MIN_CHARACTERS_PER_PAGE=5
+OCR_MIN_AVERAGE_CONFIDENCE=0.55
+FULL_AUDIT_MIN_CONFIDENCE=0.92
+FULL_AUDIT_WINDOW_CHARACTERS=6000
+FULL_AUDIT_OVERLAP_CHARACTERS=600
+AUDIO_TRANSCRIPTION_PROVIDER=local
+LOCAL_WHISPER_MODEL=small
+LOCAL_WHISPER_DEVICE=cpu
+LOCAL_WHISPER_COMPUTE_TYPE=int8
 ```
 
 Run automatic processing:
@@ -77,47 +109,35 @@ python main.py --process input/audio/sermon.mp3
 python main.py --process input/images/chapter24
 ```
 
-## Desktop application
+With `AUDIO_TRANSCRIPTION_PROVIDER=local`, audio stays on this computer during
+transcription. The local model is downloaded on first use. Text correction and
+review continue to use the independently selected `AI_PROVIDER`.
 
-The local PySide6 desktop application lets users select audio files or image folders,
-run the existing automatic pipeline in a background thread, follow progress and logs,
-and open generated DOCX files. The GUI does not duplicate backend processing logic.
+## Automatic audio monitoring
 
-Install the GUI dependency and start it with:
+Double-click `start_auto_watch.bat` to run a minimized background watcher. New
+MP3/M4A files placed in `input/audio` are processed one at a time after copying
+finishes, the computer has been idle for two minutes, and AC power is connected.
+Double-click `stop_auto_watch.bat` to stop it cleanly.
 
-```bash
-pip install -r requirements_gui.txt
-python frontend/app.py
+The watcher runs below normal process priority, remembers completed files in
+`output/audio_watcher_state.json`, retries failures after ten minutes, and logs
+activity to `logs/audio_watcher.log`. Optional `.env` settings:
+
+```text
+WATCH_SCAN_INTERVAL_SECONDS=3
+WATCH_FILE_STABLE_SECONDS=15
+WATCH_IDLE_SECONDS=120
+WATCH_RETRY_SECONDS=600
+WATCH_REQUIRE_AC_POWER=true
+WATCH_NOTIFY_ON_SUCCESS=true
 ```
 
-## Running from source
+Run this once before first use if files already in the input folder have already
+been processed and should not run again:
 
 ```bash
-python frontend/app.py
-```
-
-## Building EXE
-
-Double-click `build.bat`, or run it from a terminal. The build uses
-`build_exe.spec` and creates `dist/BibleAI/BibleAI.exe`.
-
-## Running Windows version
-
-Double-click `BibleAI.exe` inside `dist/BibleAI/`. Keep the adjacent
-`templates`, `database`, and `prompts` folders with the executable. Place a
-user-created `.env` beside the executable to configure an API key; it is never
-packaged into the executable.
-
-For manual packaging, install PyInstaller and run:
-
-```bash
-python -m PyInstaller --clean --noconfirm build_exe.spec
-```
-
-GUI tests use mocked processing and do not require real API calls:
-
-```bash
-python -m unittest tests.test_gui
+python watch_audio.py --mark-existing
 ```
 
 Run all tests:

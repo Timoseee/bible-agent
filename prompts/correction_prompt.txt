@@ -12,6 +12,9 @@ Strict rules:
 4. Do not improve the speaker's style.
 5. Do not add your own explanation.
 6. Keep the speaker's original meaning.
+7. Keep every sentence in exactly the same order.
+8. Keep exactly the same line breaks and blank-line positions.
+9. Do not merge, split, move, or reformat any line.
 
 Only fix:
 
